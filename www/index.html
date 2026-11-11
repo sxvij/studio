@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Studio</title>
+<link rel="stylesheet" href="app.css">
+<link rel="icon" href="data:,">
+</head>
+<body>
+<header class="top">
+  <b class="brand">Studio</b>
+  <nav role="tablist">
+    <button type="button" data-tab="create" aria-selected="true">Create</button>
+    <button type="button" data-tab="library">Library</button>
+    <button type="button" data-tab="templates">Templates</button>
+    <button type="button" data-tab="jobs">Jobs <span id="jobCount" class="count"></span></button>
+  </nav>
+  <span class="status" id="status"></span>
+</header>
+
+<main>
+  <section id="tab-create">
+    <form id="genForm" class="panel" autocomplete="off">
+      <label>Describe the picture
+        <textarea name="prompt" rows="3" maxlength="1500" required placeholder="A glowing craps table in a dark luxury casino, red dice mid-air, cinematic lighting"></textarea></label>
+      <div class="grid4">
+        <label>Style <select name="style"></select></label>
+        <label>Shape <select name="size"></select></label>
+        <label>Quality <select name="quality"><option value="draft">Draft (fast, ~15 s)</option><option value="final">Final (best, ~30 s)</option></select></label>
+        <label>How many <select name="n"><option>1</option><option selected>2</option><option>4</option><option>6</option><option>8</option></select></label>
+      </div>
+      <details>
+        <summary>More options</summary>
+        <label>Leave out (negative prompt) <input name="negative" maxlength="600" placeholder="text, watermark, blurry"></label>
+        <label>Seed (same seed + same prompt = same picture) <input name="seed" inputmode="numeric" pattern="[0-9]*" placeholder="random"></label>
+        <label class="check"><input type="checkbox" name="override"> Run big batches during market hours anyway</label>
+      </details>
+      <div class="row"><button class="primary" type="submit">Generate</button><span class="hint" id="genHint"></span></div>
+    </form>
+    <h2>Recent</h2>
+    <div class="grid" id="recent"></div>
+  </section>
+
+  <section id="tab-library" hidden>
+    <div class="row filters">
+      <input id="q" type="search" placeholder="Search prompts and titles">
+      <select id="kind"><option value="">Everything</option><option value="generate">Generated</option><option value="edit">Edits</option><option value="outpaint">Extended</option><option value="upscale">Upscaled</option><option value="cutout">Cut-outs</option><option value="resize">Resized</option><option value="template">Templates</option><option value="upload">Uploads</option></select>
+      <label class="check"><input type="checkbox" id="starredOnly"> Starred</label>
+      <button type="button" id="uploadBtn">Upload…</button>
+      <input type="file" id="uploadFile" accept="image/png,image/jpeg,image/webp" multiple hidden>
+    </div>
+    <div class="grid" id="library"></div>
+    <div class="row center"><button type="button" id="more" hidden>Show older</button></div>
+  </section>
+
+  <section id="tab-templates" hidden>
+    <form id="tplForm" class="panel" autocomplete="off">
+      <div class="grid4">
+        <label>Layout <select name="layout"></select></label>
+        <label>Size <select name="preset"></select></label>
+        <label>Text alignment <select name="align"><option value="left">Left</option><option value="center">Centre</option></select></label>
+        <label>Headline band <select name="position"><option value="bottom">Bottom</option><option value="top">Top</option></select></label>
+      </div>
+      <label>Headline <input name="headline" maxlength="140" placeholder="Master the bubble craps table"></label>
+      <label>Subline <input name="subline" maxlength="300" placeholder="Real rules, a strategy lab, and a stickman who calls every roll"></label>
+      <label>Button text (optional) <input name="button" maxlength="40" placeholder="Download free"></label>
+      <div class="grid4">
+        <label>Accent <input type="color" name="accent" value="#f4c64e"></label>
+        <label>Text <input type="color" name="ink" value="#ffffff"></label>
+        <label>Background colour <input type="color" name="bg" value="#0d241f"></label>
+        <label>Font <select name="font"><option value="inter">Inter (sans)</option><option value="serif">Serif</option></select></label>
+      </div>
+      <div class="picks">
+        <div class="pick" data-pick="background"><b>Background picture</b><span>none</span><button type="button">Choose…</button><button type="button" class="clear">×</button></div>
+        <div class="pick" data-pick="foreground"><b>Screen / product</b><span>none</span><button type="button">Choose…</button><button type="button" class="clear">×</button></div>
+        <div class="pick" data-pick="logo"><b>Logo</b><span>none</span><button type="button">Choose…</button><button type="button" class="clear">×</button></div>
+      </div>
+      <div class="row"><button class="primary" type="submit">Render</button><span class="hint">The result is added to the Library.</span></div>
+    </form>
+  </section>
+
+  <section id="tab-jobs" hidden>
+    <p class="hint" id="jobsNote"></p>
+    <div id="jobs"></div>
+  </section>
+</main>
+
+<dialog id="viewer">
+  <div class="vwrap">
+    <div class="vimg"><img id="vImg" alt=""><canvas id="maskCanvas" hidden></canvas></div>
+    <aside class="vside">
+      <div class="row"><b id="vTitle"></b><button type="button" class="x" id="vClose" aria-label="Close">×</button></div>
+      <p class="meta" id="vMeta"></p>
+      <p class="prompt" id="vPrompt"></p>
+      <div class="actions" id="vActions">
+        <button type="button" data-act="vary">Variations</button>
+        <button type="button" data-act="reuse">Use prompt</button>
+        <button type="button" data-act="edit">Edit part…</button>
+        <button type="button" data-act="extend">Extend…</button>
+        <button type="button" data-act="up2">Upscale 2×</button>
+        <button type="button" data-act="up4">Upscale 4×</button>
+        <button type="button" data-act="cutout">Remove background</button>
+        <button type="button" data-act="resize">Resize for…</button>
+        <button type="button" data-act="template">Use in template</button>
+        <a class="btn" id="vDownload" href="#" download>Download</a>
+        <button type="button" data-act="star" id="vStar">☆ Star</button>
+        <button type="button" data-act="parent" id="vParent" hidden>Open original</button>
+        <button type="button" data-act="delete" class="danger">Delete</button>
+      </div>
+      <form class="tool" id="editTool" hidden>
+        <p class="hint">Paint over the part to change. Then describe what should be there.</p>
+        <div class="row"><label>Brush <input type="range" id="brush" min="8" max="200" value="60"></label><button type="button" id="maskClear">Clear</button><label class="check"><input type="checkbox" id="erase"> Erase</label></div>
+        <label>What goes there <input name="prompt" maxlength="1500" placeholder="a stack of gold casino chips"></label>
+        <label>How much to change <input type="range" name="strength" min="0.4" max="1" step="0.05" value="1"></label>
+        <label>Versions <select name="n"><option>1</option><option selected>2</option><option>4</option></select></label>
+        <div class="row"><button class="primary" type="submit">Repaint</button><button type="button" class="cancel">Cancel</button></div>
+      </form>
+      <form class="tool" id="extendTool" hidden>
+        <p class="hint">Add new picture around the edges (pixels).</p>
+        <div class="grid4"><label>Left <input type="number" name="left" min="0" max="1024" step="64" value="0"></label><label>Right <input type="number" name="right" min="0" max="1024" step="64" value="0"></label>
+          <label>Top <input type="number" name="top" min="0" max="1024" step="64" value="0"></label><label>Bottom <input type="number" name="bottom" min="0" max="1024" step="64" value="0"></label></div>
+        <label>What's in the new part (optional) <input name="prompt" maxlength="1500"></label>
+        <div class="row"><button class="primary" type="submit">Extend</button><button type="button" class="cancel">Cancel</button></div>
+      </form>
+      <form class="tool" id="resizeTool" hidden>
+        <label>Size <select name="preset"></select></label>
+        <label>Fit <select name="mode"><option value="cover">Fill and crop</option><option value="contain">Fit inside, with a background</option></select></label>
+        <label>Background (when fitting) <input type="color" name="bg" value="#000000"></label>
+        <label>Keep in view <select name="focus"><option value="0.5,0.5">Centre</option><option value="0.5,0">Top</option><option value="0.5,1">Bottom</option><option value="0,0.5">Left</option><option value="1,0.5">Right</option></select></label>
+        <div class="row"><button class="primary" type="submit">Make it</button><button type="button" class="cancel">Cancel</button></div>
+      </form>
+    </aside>
+  </div>
+</dialog>
+
+<dialog id="picker">
+  <div class="row"><b>Choose a picture</b><button type="button" class="x" id="pickClose" aria-label="Close">×</button></div>
+  <div class="grid small" id="pickGrid"></div>
+</dialog>
+
+<div class="toast" id="toast" role="status" hidden></div>
+<script src="app.js" type="module"></script>
+</body>
+</html>

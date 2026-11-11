@@ -1,0 +1,22 @@
+[Unit]
+Description=Studio: image generation and editing on Centre AI, templates, library (127.0.0.1:8122)
+After=network-online.target
+Wants=network-online.target
+[Service]
+User=studio
+Group=studio
+WorkingDirectory=/opt/studio
+EnvironmentFile=/etc/studio/env
+Environment=STUDIO_DATA=/var/lib/studio HOME=/var/lib/studio/tmp OMP_NUM_THREADS=3
+ExecStart=/opt/studio/venv/bin/python -m uvicorn app.main:app --host 127.0.0.1 --port 8122 --no-server-header --log-level warning
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/var/lib/studio
+UMask=0027
+MemoryMax=3G
+[Install]
+WantedBy=multi-user.target

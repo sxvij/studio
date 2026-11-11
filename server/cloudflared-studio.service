@@ -1,0 +1,13 @@
+[Unit]
+Description=Cloudflare Tunnel for studio.sxvij.com (token in /etc/cloudflared/studio.env)
+After=network-online.target
+Wants=network-online.target
+[Service]
+Type=notify
+EnvironmentFile=/etc/cloudflared/studio.env
+ExecStart=/usr/bin/cloudflared --no-autoupdate tunnel run
+TimeoutStartSec=15
+Restart=on-failure
+RestartSec=5s
+[Install]
+WantedBy=multi-user.target
