@@ -88,7 +88,7 @@ The first deploy also creates the user, folders, venv and model. The Centre AI t
 
 ## Music tool (tools/music/compose.py, runs on CT 112 buildbox)
 
-Background music for the casino apps (Crapletics, Jackletics, Roulettics), composed by rules and played by FluidSynth:
+Background music for the casino apps (Crapletics, Jackletics, Roulettics), composed by rules and played by FluidSynth (pop chords too: bare names are triads, sus4, add9, slash chords like A/C#):
 no AI model, so nothing to license and the same seed always gives the same music. Each style is six interchangeable
 8-bar segments in one key and tempo; each starts on (or near) the home chord and ends on a turnaround back to it, with
 3 s of tail. The apps (`js/music.js`) play them back to back on the beat in a random order, never the same segment
@@ -101,6 +101,9 @@ twice in a row, so the music goes on without looping the same way.
 | `bossa` (Bossa Nova) | nylon guitar in the bossa rhythm, flute, root-fifth bass, clave and shaker | 132, straight |
 | `lofi` (Lo-fi Lounge) | electric piano, vibes, fingered bass, room kit, low-pass, vinyl crackle | 78, lazy swing |
 | `latenight` (Late Night) | solo piano (root and rolled voicings, melody) with slow strings | 66 |
+| `jpop` (J-Pop Rush) | J-pop progressions (royal road IV-V-iii-vi, Komuro vi-IV-V-I, Just the Two of Us, canon, a bVI-bVII-I lift): bright piano pulses, strings, picked bass in eighths, saw lead doubled by glockenspiel, overdriven power chords, 8-beat drums with tom fills | 150 |
+| `dance` (Dance Floor) | house: four on the floor, claps, open hats on the off-beat, off-beat synth bass, polysynth stabs, a sixteenth arpeggio, square-lead hook, a snare build into each segment | 126 |
+| `citypop` (City Pop) | 80s Tokyo: maj7 changes (Just the Two of Us), slap bass, electric piano and clean-guitar chops, brass hits, alto-sax lead, disco hats | 108 |
 
 Each segment is mastered to -18 LUFS (the whole style measured together, one gain for all), peaks under -1 dBFS, MP3
 96 kbps (about 1.5 MB a style); `preview.mp3` is two minutes played the way the apps play it, for listening only.

@@ -13,7 +13,9 @@ writes OUT/<style>/seg1.mp3 ... seg6.mp3, OUT/<style>/manifest.json and OUT/<sty
 of segments played the way the apps play them, for listening; not for the apps).
 
 Styles: lounge (jazz piano trio), swing (Vegas big-band swing), bossa (bossa nova), lofi (lo-fi lounge),
-latenight (solo piano ballad with strings).
+latenight (solo piano ballad with strings), jpop (J-pop: the royal road IV-V-iii-vi, Komuro vi-IV-V-I, the Just the Two of
+Us and canon progressions, a bVI-bVII-I lift), dance (house: four on the floor, offbeat bass, synth hook), citypop
+(80s Tokyo: slap bass, electric piano, funk guitar, brass, sax).
 
 Needs fluidsynth, ffmpeg and numpy, and /opt/soundfonts/GeneralUser-GS.sf2 (S. Christian Collins, v2.0.3: "use without
 restriction for your own music creation, private or commercial"; /opt/soundfonts/GeneralUser-GS-LICENSE.txt).
@@ -55,13 +57,21 @@ QUAL = {
     '7b9': ([0, 4, 7, 10], [13, 20], [0, 1, 4, 5, 7, 8, 10], [4, 8, 10, 13]),
     'm7b5': ([0, 3, 6, 10], [17], [0, 1, 3, 5, 6, 8, 10], [3, 6, 10, 12]),
     'dim7': ([0, 3, 6, 9], [], [0, 2, 3, 5, 6, 8, 9, 11], [0, 3, 6, 9]),
+    # pop: plain triads (a bare name, 'D'), minor, sus4, add9; a slash names the bass ('A/C#')
+    'maj': ([0, 4, 7], [14, 9], [0, 2, 4, 5, 7, 9, 11], [0, 4, 7]),
+    'm': ([0, 3, 7], [14, 10], [0, 2, 3, 5, 7, 8, 10], [0, 3, 7]),
+    'sus4': ([0, 5, 7], [14], [0, 2, 4, 5, 7, 9, 10], [0, 5, 7]),
+    '7sus4': ([0, 5, 7, 10], [14], [0, 2, 4, 5, 7, 9, 10], [5, 7, 10, 14]),
+    'add9': ([0, 4, 7], [14], [0, 2, 4, 5, 7, 9, 11], [0, 4, 7, 14]),
+    'madd9': ([0, 3, 7], [14], [0, 2, 3, 5, 7, 8, 10], [0, 3, 7, 14]),
 }
 
 
 class Chord:
     def __init__(self, sym):
+        sym, _, over = sym.partition('/')
         name = sym[:2] if len(sym) > 1 and sym[1] in 'b#' else sym[:1]
-        q = sym[len(name):] or 'maj7'
+        q = sym[len(name):] or 'maj'
         if q not in QUAL:
             raise ValueError(f'chord {sym}: unknown quality {q}')
         self.sym, self.root = sym, PC[name]
@@ -71,6 +81,7 @@ class Chord:
         self.scale = [(self.root + i) % 12 for i in scale]
         self.voicing = [(self.root + i) % 12 for i in voicing]
         self.fifth = (self.root + (6 if q in ('m7b5', 'dim7') else 7)) % 12
+        self.bass = PC[over] if over else self.root            # a slash chord's bass note
 
 
 def parse(prog):
@@ -237,7 +248,7 @@ CELLS = {   # melody rhythms within a bar: (onset beat, beats)
 }
 
 
-def melody(song, chords, ch, lo, hi, density, play=0.75, vel=72):
+def melody(song, chords, ch, lo, hi, density, play=0.75, vel=72, reuse=0.5):
     """Two-bar phrases (call, then an answer that settles on a chord tone), some left out so it breathes; a phrase
     may repeat the last motif, moved to fit the new chords."""
     r = song.rng
@@ -252,15 +263,15 @@ def melody(song, chords, ch, lo, hi, density, play=0.75, vel=72):
             b0 = ph + bar * 4
             if b0 >= total:
                 break
-            reuse = bar == 0 and motif and r.random() < 0.5
-            cell = motif[0] if reuse else r.choice(CELLS['end'] if bar == 1 else CELLS[density])
+            again = bar == 0 and motif and r.random() < reuse
+            cell = motif[0] if again else r.choice(CELLS[('popend' if density == 'pop' else 'end')] if bar == 1 else CELLS[density])
             new = []
             for k, (on, d) in enumerate(cell):
                 beat = b0 + on
                 c = chord_at(chords, beat)
                 last = bar == 1 and k == len(cell) - 1
                 strong = on in (0, 2) or d >= 1.5 or last
-                if reuse and k < len(motif[1]):
+                if again and k < len(motif[1]):
                     want = prev + motif[1][k]
                     pool = [p for p in range(lo, hi + 1) if p % 12 in c.scale]
                     p = min(pool, key=lambda n: abs(n - want))
@@ -377,6 +388,144 @@ def pad(song, chords, ch, vel=44):
             song.add(ch, p, st, du - .05, vel, human=0)
 
 
+
+# ---------------------------------------------------------------- pop and dance parts
+CELLS['pop'] = [[(0, .5), (.5, .5), (1, .5), (1.5, .5), (2, 1), (3, .5), (3.5, .5)], [(0, 1), (1, .5), (1.5, .5), (2, .5), (2.5, 1.5)],
+                [(.5, .5), (1, .5), (1.5, 1), (2.5, .5), (3, 1)], [(0, .75), (.75, .25), (1, .5), (1.5, .5), (2, 2)],
+                [(0, .5), (.5, .25), (.75, .25), (1, 1), (2, .5), (2.5, .5), (3, 1)], [(1, .5), (1.5, .5), (2, .5), (2.5, .5), (3, .5), (3.5, .5)]]
+CELLS['popend'] = [[(0, 1.5), (1.5, .5), (2, 2)], [(0, .5), (.5, .5), (1, 3)], [(0, 2), (2, 1), (3, 1)], [(0, .75), (.75, .25), (1, 3)]]
+
+
+def drums_pop(song, total, kind):
+    """kind: eight (J-pop 8-beat, 16th hats, tom fill), four (house: kick on every beat, clap, open hats, a snare build),
+    disco (city pop: 16th hats, open hat on the and)."""
+    r = song.rng
+    song.add(9, 49, 0, .5, 76)                                                 # a crash to start the segment
+    for bar in range(0, total, 4):
+        last = bar == total - 4
+        if kind == 'eight':
+            for e in range(16 if not last else 8):
+                song.add(9, 42, bar + e * .25, .1, 50 if e % 4 == 0 else 38 if e % 2 == 0 else 24, human=.004)
+            for on in [0, 2, 2.5] + ([1.75] if r.random() < .5 else []) + ([3.5] if r.random() < .3 else []):
+                if not (last and on >= 2):
+                    song.add(9, 36, bar + on, .2, 96, human=.004)
+            for on in (1, 3):
+                if not (last and on == 3):
+                    song.add(9, 38, bar + on, .2, 98, human=.004)
+            if last:                                                           # tom fill into the next segment
+                for k, (on, n) in enumerate([(2, 50), (2.25, 50), (2.5, 48), (2.75, 48), (3, 47), (3.25, 47), (3.5, 45), (3.75, 45)]):
+                    song.add(9, n, bar + on, .2, 70 + k * 4, human=.003)
+                song.add(9, 36, bar + 3.5, .2, 90)
+        elif kind == 'four':
+            for b in range(4):
+                song.add(9, 36, bar + b, .2, 108, human=.002)
+                song.add(9, 46, bar + b + .5, .2, 62, human=.004)
+                for q in (.25, .75):
+                    song.add(9, 42, bar + b + q, .1, 26, human=.004)
+            for on in (1, 3):
+                song.add(9, 39, bar + on, .2, 92, human=.004)
+                song.add(9, 38, bar + on, .2, 54, human=.004)
+            if last:                                                           # a snare build into the next segment
+                for k in range(16):
+                    song.add(9, 38, bar + k * .25, .1, 28 + k * 5, human=.002)
+        else:
+            for e in range(16):
+                if e % 4 == 2:
+                    song.add(9, 46, bar + e * .25, .2, 46, human=.004)
+                else:
+                    song.add(9, 42, bar + e * .25, .1, 40 if e % 2 == 0 else 26, human=.004)
+            for on in (0, 2, 2.75):
+                song.add(9, 36, bar + on, .2, 90, human=.004)
+            for on in (1, 3):
+                song.add(9, 38, bar + on, .2, 88, human=.004)
+            if r.random() < .5:
+                song.add(9, 39, bar + 3, .2, 60)
+            if last:
+                for k, (on, n) in enumerate([(3, 48), (3.25, 47), (3.5, 45), (3.75, 43)]):
+                    song.add(9, n, bar + on, .2, 74 + k * 5)
+
+
+def pop_bass(song, chords, ch, home, kind, lo=28, hi=52, vel=92):
+    """eighths (driving root eighths, an octave on some upbeats), offbeat (house), funk (city-pop syncopation)."""
+    r = song.rng
+    prev = 40
+    for i, (st, du, c) in enumerate(chords):
+        root = nearest(c.bass, prev, lo + 4, lo + 16)
+        nxt = chords[i + 1][2].bass if i + 1 < len(chords) else home
+        if kind == 'eighths':
+            for e in range(int(du * 2)):
+                p = root + 12 if e % 4 == 3 and r.random() < .5 else root
+                song.add(ch, p, st + e * .5, .42, vel - (0 if e % 2 == 0 else 10), human=.004)
+        elif kind == 'offbeat':
+            for b in range(int(du)):
+                song.add(ch, root, st + b + .5, .38, vel, human=.003)
+                if r.random() < .25:
+                    song.add(ch, root + 12, st + b + .75, .2, vel - 20, human=.003)
+        else:
+            pat = [(0, .4, root), (.75, .2, root + 12), (1.5, .4, root), (2, .25, nearest(c.fifth, root + 5, lo, hi)),
+                   (2.5, .4, root), (3.25, .2, root + 12), (3.5, .4, nearest(nxt, root, lo, hi) + r.choice([-1, 1]))]
+            for on, d, p in pat:
+                if on < du:
+                    song.add(ch, p, st + on, d, vel - (8 if on % 1 else 0), human=.005)
+        prev = root
+
+
+def pop_keys(song, chords, ch, kind, lo, hi, top, vel=62):
+    """pulse8 (eighth-note chord pulses), offbeat (house stabs), pad (held), funk16 (short city-pop chops)."""
+    r = song.rng
+    prev = None
+    for st, du, c in chords:
+        v = voice(c, prev, lo, hi, top)
+        prev = v
+        if kind == 'pulse8':
+            hits = [(e * .5, .42, vel - (0 if e % 2 == 0 else 12)) for e in range(int(du * 2))]
+        elif kind == 'offbeat':
+            hits = [(b + .5, .3, vel) for b in range(int(du))]
+        elif kind == 'pad':
+            hits = [(0, du - .05, vel)]
+        else:
+            hits = [(on, .22, vel - (0 if on % 1 == 0 else 8)) for on in (0, .75, 1.5, 2.25, 2.75, 3.5) if on < du and (on == 0 or r.random() < .75)]
+        for on, d, vv in hits:
+            for k, p in enumerate(v):
+                song.add(ch, p, st + on + k * .006, d, vv - (4 if k == 0 else 0), human=.004)
+
+
+def arp(song, chords, ch, lo, vel=48, step=.25):
+    """A sparkly up-and-down arpeggio of the chord (with its ninth) in sixteenths."""
+    for st, du, c in chords:
+        pcs = [c.tones[0], c.tones[1], c.tones[2], c.colour[0] if c.colour else c.tones[0]]
+        notes = []
+        for pc in pcs + pcs:
+            n = lo + ((pc - lo) % 12)
+            while notes and n <= notes[-1]:
+                n += 12
+            notes.append(n)
+        seq = notes[:6] + notes[4:0:-1]
+        for i in range(int(du / step)):
+            song.add(ch, seq[i % len(seq)], st + i * step, step * .85, vel + (10 if i % 4 == 0 else 0), human=.003)
+
+
+def power_chords(song, chords, ch, vel=70):
+    """Overdriven guitar: root-fifth-octave in eighths (the anime-opening drive)."""
+    for st, du, c in chords:
+        root = nearest(c.bass if c.bass != c.root else c.root, 45, 40, 52)
+        for e in range(int(du * 2)):
+            for k, p in enumerate((root, root + 7, root + 12)):
+                song.add(ch, p, st + e * .5 + k * .004, .4, vel - (0 if e % 2 == 0 else 8), human=.004)
+
+
+def stabs(song, chords, ch, vel=74):
+    """Brass hits on the and of two and of four, sometimes."""
+    r = song.rng
+    prev = None
+    for st, du, c in chords:
+        v = voice(c, prev, 60, 68, 82)
+        prev = v
+        for on in ((1.5, 3.5) if du == 4 else (1.5,)):
+            if r.random() < .55:
+                for p in v:
+                    song.add(ch, p, st + on, .28, vel, human=.004)
+
 # ---------------------------------------------------------------- styles
 SWING_COMP = [[(0, .9), (2.5, .4)], [(1.5, .5), (3.5, .4)], [(0, 1.4), (1.5, .4)], [(.5, .4), (2, .9)], [(1, .5), (2.5, .5)],
               [(0, .5)], [(0, 1.8)]]
@@ -430,6 +579,37 @@ STYLES = {
                'Cmaj7 | Ebdim7 | Dm7 | G7 | Cmaj7 | Bbm7 Eb7 | Abmaj7 | Dm7 G7',
                'Fmaj7 | Em7 | Dm7 | Cmaj7 | Bm7b5 | E7b9 | Am7 D7 | Dm7 G7'],
         setup={0: (0, 104, 60, 62), 3: (49, 58, 70, 72)},
+    ),
+    'jpop': dict(
+        name='J-Pop Rush', blurb='Bright piano, a soaring lead and a driving beat', bpm=150, swing=.5, home='D',
+        progs=['Gmaj7 | A | F#m7 | Bm | Gmaj7 | A | Bm | Asus4 A',
+               'Bm | G | A | D | Bm | G | A | Asus4 A',
+               'D | A/C# | Bm | F#m/A | G | D/F# | Em7 | Asus4 A',
+               'Gmaj7 | F#7 | Bm7 | Am7 D7 | Gmaj7 | F#7 | Bm7 | Asus4 A',
+               'D | Bm | G | A | Bb | C | D | Asus4 A',
+               'Gadd9 | A | F#m7 | Bm | Em7 | F#m7 | Gmaj7 | A7sus4 A'],
+        setup={0: (1, 84, 52, 34), 1: (81, 76, 72, 52), 4: (9, 60, 80, 60), 2: (34, 104, 64, 16), 3: (48, 64, 60, 62),
+               5: (29, 52, 40, 30), 9: (16, 100, 64, 26)},
+    ),
+    'dance': dict(
+        name='Dance Floor', blurb='Four on the floor, offbeat bass and a synth hook', bpm=126, swing=.5, home='A',
+        progs=['Am | F | C | G | Am | F | C | G',
+               'F | G | Em | Am | F | G | Am | G',
+               'Am | Em | F | G | Am | Em | F | G',
+               'Dm | F | C | G | Dm | F | Em | G',
+               'F | G | Am | C | F | G | Am | Gsus4 G',
+               'Am | C | G | F | Am | C | G | Gsus4 G'],
+        setup={0: (90, 76, 60, 44), 1: (80, 70, 70, 50), 3: (81, 48, 56, 56), 2: (38, 108, 64, 8), 9: (24, 108, 64, 18)},
+    ),
+    'citypop': dict(
+        name='City Pop', blurb='Tokyo at night: slap bass, electric piano, sax and brass', bpm=108, swing=.52, home='F',
+        progs=['Bbmaj7 | A7 | Dm7 | Cm7 F7 | Bbmaj7 | A7 | Dm7 | Gm7 C7',
+               'Fmaj7 | Em7 A7 | Dm7 | Cm7 F7 | Bbmaj7 | C/Bb | Am7 | Gm7 C7',
+               'Bbmaj7 | C | Am7 | Dm7 | Gm7 | C | Fmaj7 | Gm7 C7',
+               'Dm7 | G7 | Cm7 | F7 | Bbmaj7 | Am7 | Gm7 | Gm7 C7',
+               'Fmaj7 | Am7 | Bbmaj7 | C7sus4 | Fmaj7 | Am7 | Bbmaj7 | C7',
+               'Bbmaj7 | Am7 | Gm7 | Fmaj7 | Bbmaj7 | Am7 | Gm7 | C7sus4 C7'],
+        setup={0: (4, 90, 54, 46), 1: (65, 80, 74, 50), 2: (36, 104, 64, 14), 3: (61, 66, 62, 42), 4: (27, 62, 44, 34), 9: (0, 92, 64, 26)},
     ),
 }
 
@@ -489,6 +669,29 @@ def compose(style, idx, seed):
         ballad_piano(song, chords, 0, home)
         melody(song, chords, 0, 67, 86, 'calm', play=.85, vel=60)
         pad(song, chords, 3)
+    elif style == 'jpop':
+        pop_keys(song, chords, 0, 'pulse8', 55, 64, 79, vel=60)
+        pop_keys(song, chords, 3, 'pad', 57, 66, 81, vel=48)
+        pop_bass(song, chords, 2, home, 'eighths')
+        melody(song, chords, 1, 69, 88, 'pop', play=.9, vel=74, reuse=.75)
+        for n in [x for x in song.notes if x[0] == 1]:                          # the glockenspiel doubles the lead
+            song.notes.append((4, n[1] + 12, n[2], n[3], max(1, n[4] - 22)))
+        if idx % 2 == 0:
+            power_chords(song, chords, 5)
+        drums_pop(song, total, 'eight')
+    elif style == 'dance':
+        pop_keys(song, chords, 0, 'offbeat', 57, 66, 81, vel=70)
+        pop_bass(song, chords, 2, home, 'offbeat', lo=26, hi=50)
+        melody(song, chords, 1, 69, 86, 'pop', play=.7, vel=70, reuse=.85)
+        arp(song, chords, 3, 64)
+        drums_pop(song, total, 'four')
+    elif style == 'citypop':
+        pop_keys(song, chords, 0, 'funk16', 53, 62, 76, vel=58)
+        pop_keys(song, chords, 4, 'funk16', 60, 67, 80, vel=50)
+        pop_bass(song, chords, 2, home, 'funk', lo=28, hi=52)
+        melody(song, chords, 1, 62, 80, 'pop', play=.8, vel=70, reuse=.7)
+        stabs(song, chords, 3)
+        drums_pop(song, total, 'disco')
     return song, total, st
 
 
