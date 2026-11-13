@@ -112,7 +112,8 @@ Each segment is mastered to -18 LUFS (the whole style measured together, one gai
 # on CT 200: copy the tool in, render, bring the files back into an app (not preview.mp3)
 tar -C ~/studio/tools -cf - music | ssh pve "pct exec 112 -- su - builder -c 'mkdir -p ~/studio-tools && tar -C ~/studio-tools -xf -'"
 ssh pve "pct exec 112 -- su - builder -c 'cd ~/studio-tools/music && python3 compose.py ~/music-out [style ...] [--seed 7]'"
-ssh pve "pct exec 112 -- su - builder -c 'tar -C ~/music-out --exclude=preview.mp3 -cf - .'" | tar -C ~/craps/audio/music -xf -
+ssh pve "pct exec 112 -- su - builder -c 'tar -C ~/music-out --exclude=preview.mp3 -cf - .'" | tar -C ~/casino-suite/crapletics/audio/music -xf -
+# and the same files for Jackletics and Roulettics: ~/casino-suite/core/audio/music
 ```
 
 Tools on CT 112 (installed 2026-11-13): fluidsynth 2.4, fluid-soundfont-gm (FluidR3_GM, MIT), sox, ffmpeg, numpy, and
