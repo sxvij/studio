@@ -85,3 +85,38 @@ python3 tests/test_studio.py   # inside CT 114 (needs fastapi, Pillow, chromium)
 
 The first deploy also creates the user, folders, venv and model. The Centre AI token was passed once with
 `--token` from stdin, and it never sits in the repo.
+
+## Music tool (tools/music/compose.py, runs on CT 112 buildbox)
+
+Background music for the casino apps (Crapletics, Jackletics, Roulettics), composed by rules and played by FluidSynth:
+no AI model, so nothing to license and the same seed always gives the same music. Each style is six interchangeable
+8-bar segments in one key and tempo; each starts on (or near) the home chord and ends on a turnaround back to it, with
+3 s of tail. The apps (`js/music.js`) play them back to back on the beat in a random order, never the same segment
+twice in a row, so the music goes on without looping the same way.
+
+| Style | Band | Tempo |
+|---|---|---|
+| `lounge` (Lounge) | piano trio: rootless voicings, walking bass, brushes, a piano melody | 112, swung |
+| `swing` (Vegas Swing) | piano, walking bass, jazz kit, muted trumpet, brass stabs | 150, swung |
+| `bossa` (Bossa Nova) | nylon guitar in the bossa rhythm, flute, root-fifth bass, clave and shaker | 132, straight |
+| `lofi` (Lo-fi Lounge) | electric piano, vibes, fingered bass, room kit, low-pass, vinyl crackle | 78, lazy swing |
+| `latenight` (Late Night) | solo piano (root and rolled voicings, melody) with slow strings | 66 |
+
+Each segment is mastered to -18 LUFS (the whole style measured together, one gain for all), peaks under -1 dBFS, MP3
+96 kbps (about 1.5 MB a style); `preview.mp3` is two minutes played the way the apps play it, for listening only.
+
+```sh
+# on CT 200: copy the tool in, render, bring the files back into an app (not preview.mp3)
+tar -C ~/studio/tools -cf - music | ssh pve "pct exec 112 -- su - builder -c 'mkdir -p ~/studio-tools && tar -C ~/studio-tools -xf -'"
+ssh pve "pct exec 112 -- su - builder -c 'cd ~/studio-tools/music && python3 compose.py ~/music-out [style ...] [--seed 7]'"
+ssh pve "pct exec 112 -- su - builder -c 'tar -C ~/music-out --exclude=preview.mp3 -cf - .'" | tar -C ~/craps/audio/music -xf -
+```
+
+Tools on CT 112 (installed 2026-11-13): fluidsynth 2.4, fluid-soundfont-gm (FluidR3_GM, MIT), sox, ffmpeg, numpy, and
+`/opt/soundfonts/GeneralUser-GS.sf2` (S. Christian Collins, v2.0.3, sha256 9575028c…8cfe, from the author's GitHub;
+license in `/opt/soundfonts/GeneralUser-GS-LICENSE.txt`: free for music, private or commercial). Not used: Meta's
+MusicGen (its weights are non-commercial) and Stable Audio Open (gated download; free under $1M revenue): either could
+be added later for ambience the rules can't make.
+
+To change the music: edit a style's progressions (`progs`), band (`setup`: channel → program, volume, pan, reverb) or
+parts in `compose()`; a new style also needs an entry in each app's `js/music.js` STYLES.
